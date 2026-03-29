@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>FlowForce — Pressure Washing Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FlowForce"/>
+<meta name="theme-color" content="#00c6ff"/>
+<link rel="apple-touch-icon" href="https://via.placeholder.com/192x192/0072ff/ffffff?text=FF"/>
 <style>
   :root {
     --bg: #0a0d12; --surface: #111620; --surface2: #1a2030; --border: #232c3d;
@@ -599,6 +605,16 @@ window.deleteCurrentJob = function() { if(!confirm('Delete this job?')) return; 
 
 // ─── INIT ─────────────────────────────────────────
 startListeners();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/FlowForce/sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW error:', err));
+  });
+}
 </script>
 </body>
 </html>
