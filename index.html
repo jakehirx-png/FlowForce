@@ -194,62 +194,78 @@
 
 <!-- CALCULATOR -->
 <div class="page" id="page-calculator">
-  <div class="section-header"><div class="section-title">Pricing Calculator</div></div>
+  <div class="section-header"><div class="section-title">Estimate Builder</div></div>
   <div class="grid-2">
-    <div class="card">
-      <div class="card-title">Job Details</div>
-      <div class="form-group">
-        <label>Service Type</label>
-        <select id="calc-service" onchange="calcUpdate()">
-          <option value="flatwork">Flat Work</option>
-          <option value="house">House Exterior</option>
-          <option value="deck">Deck / Patio</option>
-          <option value="roof">Roof</option>
-          <option value="fence">Fence</option>
-          <option value="gutter">Gutter Cleaning</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <div><label>Square Footage (sq ft)</label><input type="number" id="calc-sqft" value="500" min="50" oninput="calcUpdate()"/></div>
-        <div id="stories-group">
-          <label>Stories / Floors</label>
-          <select id="calc-stories" onchange="calcUpdate()">
-            <option value="1">1 Story</option><option value="2">2 Stories</option><option value="3">3+ Stories</option>
+    <!-- LEFT: Add services -->
+    <div>
+      <div class="card">
+        <div class="card-title">Add a Service</div>
+        <div class="form-group">
+          <label>Service Type</label>
+          <select id="calc-service" onchange="calcStoryToggle()">
+            <option value="flatwork">Flat Work</option>
+            <option value="house">House Exterior</option>
+            <option value="deck">Deck / Patio</option>
+            <option value="roof">Roof</option>
+            <option value="fence">Fence</option>
+            <option value="gutter">Gutter Cleaning</option>
           </select>
         </div>
-      </div>
-      <div class="form-group">
-        <label>Dirt Level</label>
-        <select id="calc-dirt" onchange="calcUpdate()">
-          <option value="light">Light (routine clean)</option>
-          <option value="moderate">Moderate (some staining)</option>
-          <option value="heavy">Heavy (oil, mold, algae)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Add-ons</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-          <label style="text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text)">
-            <input type="checkbox" id="addon-sealant" onchange="calcUpdate()" style="width:auto"> Apply Sealant (+20%)
-          </label>
-          <label style="text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text)">
-            <input type="checkbox" id="addon-chemicals" onchange="calcUpdate()" style="width:auto"> Chemical Treatment (+$<span id="chem-label">50</span>)
-          </label>
+        <div class="form-row">
+          <div><label>Square Footage (sq ft)</label><input type="number" id="calc-sqft" value="500" min="50"/></div>
+          <div id="stories-group">
+            <label>Stories / Floors</label>
+            <select id="calc-stories">
+              <option value="1">1 Story</option><option value="2">2 Stories</option><option value="3">3+ Stories</option>
+            </select>
+          </div>
         </div>
+        <div class="form-row">
+          <div>
+            <label>Dirt Level</label>
+            <select id="calc-dirt">
+              <option value="light">Light</option>
+              <option value="moderate">Moderate</option>
+              <option value="heavy">Heavy</option>
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;justify-content:flex-end;padding-bottom:2px">
+            <label style="text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)">
+              <input type="checkbox" id="addon-sealant" style="width:auto"> Sealant (+20%)
+            </label>
+            <label style="text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)">
+              <input type="checkbox" id="addon-chemicals" style="width:auto"> Chemicals (+$<span id="chem-label">50</span>)
+            </label>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="addLineItem()">+ Add to Estimate</button>
       </div>
-      <div class="form-group">
-        <label>Markup (%)</label>
-        <input type="range" id="calc-margin" min="0" max="60" value="20" oninput="calcUpdate();document.getElementById('margin-val').textContent=this.value+'%'"/>
+
+      <!-- Line items -->
+      <div class="card">
+        <div class="card-title">Estimate Lines</div>
+        <div id="line-items-list"><div class="empty" style="padding:24px"><div class="empty-icon">📋</div>No services added yet</div></div>
+      </div>
+
+      <!-- Markup -->
+      <div class="card">
+        <div class="card-title">Markup</div>
+        <input type="range" id="calc-margin" min="0" max="60" value="20" oninput="updateMarginLabel();renderEstimateTotal()"/>
         <div style="text-align:right;font-size:12px;color:var(--accent);margin-top:4px" id="margin-val">20%</div>
       </div>
     </div>
+
+    <!-- RIGHT: Estimate summary -->
     <div>
-      <div class="calc-result" id="calc-result"></div>
+      <div class="calc-result" id="calc-result" style="min-height:120px"></div>
+
       <div class="card" style="margin-top:20px">
-        <div class="card-title">Save as Job</div>
+        <div class="card-title">Save Estimate as Job</div>
         <div class="form-group"><label>Customer</label><select id="calc-customer"></select></div>
         <div class="form-group"><label>Job Date</label><input type="date" id="calc-date"/></div>
+        <div class="form-group"><label>Notes</label><textarea id="calc-notes" rows="2" placeholder="Any details about the full job..."></textarea></div>
         <button class="btn btn-success" style="width:100%" onclick="saveEstimate()">Save as Job Estimate</button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="clearEstimate()">Clear Estimate</button>
       </div>
     </div>
   </div>
@@ -436,7 +452,7 @@ window.showPage = function(name) {
   else if(name==='schedule') renderCalendar();
   else if(name==='customers') renderCustomers();
   else if(name==='timesheet') renderTimesheet();
-  else if(name==='calculator') { populateCalcCustomers(); calcUpdate(); }
+  else if(name==='calculator') { populateCalcCustomers(); calcStoryToggle(); renderEstimateLines(); renderEstimateTotal(); }
   else if(name==='settings') renderSettings();
 };
 
@@ -516,32 +532,117 @@ function renderTimesheet() {
   log.innerHTML=`<table><thead><tr><th>Date</th><th>Worker</th><th>Job</th><th>Hours</th><th>Earnings</th><th></th></tr></thead><tbody>${hs.map(([id,h])=>{ const w=state.workers[h.workerId]; const j=state.jobs[h.jobId]; const c=j?state.customers[j.customerId]:null; const e=w?(Number(h.hours||0)*Number(w.rate||0)):0; return `<tr><td class="mono">${fmt(h.date)}</td><td>${w?w.fname+' '+w.lname:'?'}</td><td>${j?j.service+(c?' ('+c.fname+')':''):'—'}</td><td class="mono">${h.hours}h</td><td class="mono" style="color:var(--success)">${fmtMoney(e)}</td><td><button class="btn btn-danger btn-sm" onclick="deleteHours('${id}')">✕</button></td></tr>`; }).join('')}</tbody></table>`;
 }
 
-// ─── CALCULATOR ──────────────────────────────────
-window.calcUpdate = function() {
-  const s=state.settings; const rates=s.rates||DEFAULT_SETTINGS.rates; const dirt=s.dirt||DEFAULT_SETTINGS.dirt; const chem=Number(s.addonChemicals||50);
-  const svc=document.getElementById('calc-service').value;
-  const sqft=Math.max(50,parseInt(document.getElementById('calc-sqft').value)||500);
-  const stories=document.getElementById('calc-stories').value;
-  const dirtVal=document.getElementById('calc-dirt').value;
-  const sealant=document.getElementById('addon-sealant').checked;
-  const chemicals=document.getElementById('addon-chemicals').checked;
-  const margin=parseInt(document.getElementById('calc-margin').value)/100;
-  const storiesOk=['house','roof'].includes(svc);
-  document.getElementById('stories-group').style.display=storiesOk?'block':'none';
-  const es=storiesOk?stories:'1';
-  const rate=rates[svc]||0.25;
-  const base=sqft*rate, afterDirt=base*(dirt[dirtVal]||1), afterStory=afterDirt*STORY_MULT[es];
-  let addons=chemicals?chem:0, subtotal=afterStory+addons;
-  if(sealant) subtotal*=1.20;
-  const total=subtotal*(1+margin);
-  document.getElementById('calc-result').innerHTML=`<div style="font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px">Estimated Price</div><div class="calc-price">${fmtMoney(total)}</div><hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:16px 0"/><div class="calc-breakdown"><div class="calc-line"><span>Base (${sqft} sqft × $${rate})</span><span>${fmtMoney(base)}</span></div><div class="calc-line"><span>Dirt level (${dirtVal})</span><span>× ${dirt[dirtVal]||1}</span></div>${storiesOk&&es>1?`<div class="calc-line"><span>Multi-story</span><span>× ${STORY_MULT[es]}</span></div>`:''}${chemicals?`<div class="calc-line"><span>Chemical treatment</span><span>+${fmtMoney(chem)}</span></div>`:''}${sealant?`<div class="calc-line"><span>Sealant</span><span>+20%</span></div>`:''}<div class="calc-line"><span>Subtotal</span><span>${fmtMoney(subtotal)}</span></div><div class="calc-line"><span>Markup (${Math.round(margin*100)}%)</span><span>+${fmtMoney(subtotal*margin)}</span></div><div class="calc-line calc-total"><span>TOTAL</span><span>${fmtMoney(total)}</span></div></div>`;
-  window._lastCalcTotal=total; window._lastCalcSvc=SERVICE_LABELS[svc]||svc;
+// ─── CALCULATOR (MULTI-SERVICE ESTIMATE) ─────────
+let estimateLines = [];
+
+window.calcStoryToggle = function() {
+  const svc = document.getElementById('calc-service').value;
+  document.getElementById('stories-group').style.display = ['house','roof'].includes(svc) ? 'block' : 'none';
+};
+
+window.updateMarginLabel = function() {
+  document.getElementById('margin-val').textContent = document.getElementById('calc-margin').value + '%';
+};
+
+window.addLineItem = function() {
+  const s = state.settings;
+  const rates = s.rates || DEFAULT_SETTINGS.rates;
+  const dirt = s.dirt || DEFAULT_SETTINGS.dirt;
+  const chem = Number(s.addonChemicals || 50);
+  const svc = document.getElementById('calc-service').value;
+  const sqft = Math.max(50, parseInt(document.getElementById('calc-sqft').value) || 500);
+  const stories = document.getElementById('calc-stories').value;
+  const dirtVal = document.getElementById('calc-dirt').value;
+  const sealant = document.getElementById('addon-sealant').checked;
+  const chemicals = document.getElementById('addon-chemicals').checked;
+  const storiesOk = ['house','roof'].includes(svc);
+  const es = storiesOk ? stories : '1';
+  const rate = rates[svc] || 0.25;
+  const base = sqft * rate;
+  const afterDirt = base * (dirt[dirtVal] || 1);
+  const afterStory = afterDirt * STORY_MULT[es];
+  let subtotal = afterStory + (chemicals ? chem : 0);
+  if (sealant) subtotal *= 1.20;
+
+  estimateLines.push({
+    svc, label: SERVICE_LABELS[svc] || svc,
+    sqft, dirtVal, stories: es, sealant, chemicals,
+    subtotal: Math.round(subtotal * 100) / 100
+  });
+
+  // Reset addons
+  document.getElementById('addon-sealant').checked = false;
+  document.getElementById('addon-chemicals').checked = false;
+
+  renderEstimateLines();
+  renderEstimateTotal();
+};
+
+window.removeLineItem = function(i) {
+  estimateLines.splice(i, 1);
+  renderEstimateLines();
+  renderEstimateTotal();
+};
+
+function renderEstimateLines() {
+  const el = document.getElementById('line-items-list');
+  if (!estimateLines.length) {
+    el.innerHTML = '<div class="empty" style="padding:24px"><div class="empty-icon">📋</div>No services added yet</div>';
+    return;
+  }
+  el.innerHTML = estimateLines.map((line, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${line.label}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">
+          ${line.sqft} sqft • ${line.dirtVal} dirt
+          ${line.stories > 1 ? ' • '+line.stories+' stories' : ''}
+          ${line.sealant ? ' • sealant' : ''}
+          ${line.chemicals ? ' • chemicals' : ''}
+        </div>
+      </div>
+      <div class="mono" style="color:var(--accent);font-size:14px">${fmtMoney(line.subtotal)}</div>
+      <button class="btn btn-danger btn-sm" onclick="removeLineItem(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function renderEstimateTotal() {
+  const margin = parseInt(document.getElementById('calc-margin').value) / 100;
+  const subtotal = estimateLines.reduce((a, b) => a + b.subtotal, 0);
+  const markup = subtotal * margin;
+  const total = subtotal + markup;
+  window._lastCalcTotal = total;
+  window._lastCalcSvc = estimateLines.map(l => l.label).join(', ');
+
+  const el = document.getElementById('calc-result');
+  if (!estimateLines.length) {
+    el.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;font-size:14px">Add services to build your estimate</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px">Total Estimate</div>
+    <div class="calc-price">${fmtMoney(total)}</div>
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,.1);margin:16px 0"/>
+    <div class="calc-breakdown">
+      ${estimateLines.map(l => `<div class="calc-line"><span>${l.label} (${l.sqft} sqft)</span><span>${fmtMoney(l.subtotal)}</span></div>`).join('')}
+      <div class="calc-line"><span>Subtotal</span><span>${fmtMoney(subtotal)}</span></div>
+      <div class="calc-line"><span>Markup (${Math.round(margin*100)}%)</span><span>+${fmtMoney(markup)}</span></div>
+      <div class="calc-line calc-total"><span>TOTAL</span><span>${fmtMoney(total)}</span></div>
+    </div>`;
+}
+
+window.clearEstimate = function() {
+  estimateLines = [];
+  renderEstimateLines();
+  renderEstimateTotal();
+  toast('Estimate cleared');
 };
 
 function populateCalcCustomers() {
-  const el=document.getElementById('calc-customer'); if(!el) return;
-  el.innerHTML=Object.entries(state.customers).map(([id,c])=>`<option value="${id}">${c.fname} ${c.lname}</option>`).join('')||'<option>No customers</option>';
-  const d=document.getElementById('calc-date'); if(d) d.value=today();
+  const el = document.getElementById('calc-customer'); if(!el) return;
+  el.innerHTML = Object.entries(state.customers).map(([id,c])=>`<option value="${id}">${c.fname} ${c.lname}</option>`).join('') || '<option>No customers</option>';
+  const d = document.getElementById('calc-date'); if(d) d.value = today();
 }
 
 // ─── SETTINGS ────────────────────────────────────
@@ -586,9 +687,13 @@ window.logHours = function() {
   push(ref(db,'hours'),{workerId,jobId,date,hours}).then(()=>{document.getElementById('ts-hours').value='';toast('Hours logged!');}).catch(()=>toast('Error logging'));
 };
 window.saveEstimate = function() {
-  const customerId=document.getElementById('calc-customer').value, date=document.getElementById('calc-date').value, price=Math.round((window._lastCalcTotal||0)*100)/100, service=window._lastCalcSvc||'Service';
+  const customerId=document.getElementById('calc-customer').value, date=document.getElementById('calc-date').value;
+  const price=Math.round((window._lastCalcTotal||0)*100)/100;
+  const service=estimateLines.map(l=>l.label).join(' + ')||'Estimate';
+  const notes=document.getElementById('calc-notes').value||('Multi-service estimate: '+service);
   if(!customerId||!date){toast('Please select a customer and date');return;}
-  push(ref(db,'jobs'),{customerId,service,date,time:'08:00',status:'scheduled',price,notes:'Created from calculator estimate'}).then(()=>toast('Estimate saved as a new job!')).catch(()=>toast('Error saving'));
+  if(!estimateLines.length){toast('Please add at least one service');return;}
+  push(ref(db,'jobs'),{customerId,service,date,time:'08:00',status:'scheduled',price,notes}).then(()=>{toast('Estimate saved as a new job!');clearEstimate();}).catch(()=>toast('Error saving'));
 };
 window.deleteCustomer = function(id) { if(!confirm('Delete this customer?')) return; remove(ref(db,'customers/'+id)).then(()=>toast('Customer removed')); };
 window.deleteWorker = function(id) { if(!confirm('Delete this worker?')) return; remove(ref(db,'workers/'+id)).then(()=>toast('Worker removed')); };
