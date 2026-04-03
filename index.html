@@ -119,6 +119,7 @@
     <button onclick="showPage('customers')">Customers</button>
     <button onclick="showPage('timesheet')">Timesheet</button>
     <button onclick="showPage('calculator')">Calculator</button>
+    <button onclick="showPage('estimates')">Estimates</button>
     <button onclick="showPage('settings')">⚙ Settings</button>
   </nav>
   <div id="sync-status" class="syncing">Connecting...</div>
@@ -260,14 +261,25 @@
       <div class="calc-result" id="calc-result" style="min-height:120px"></div>
 
       <div class="card" style="margin-top:20px">
-        <div class="card-title">Save Estimate as Job</div>
+        <div class="card-title">Save Estimate</div>
         <div class="form-group"><label>Customer</label><select id="calc-customer"></select></div>
         <div class="form-group"><label>Job Date</label><input type="date" id="calc-date"/></div>
         <div class="form-group"><label>Notes</label><textarea id="calc-notes" rows="2" placeholder="Any details about the full job..."></textarea></div>
-        <button class="btn btn-success" style="width:100%" onclick="saveEstimate()">Save as Job Estimate</button>
+        <button class="btn btn-success" style="width:100%" onclick="saveEstimate()">Save Estimate</button>
         <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="clearEstimate()">Clear Estimate</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ESTIMATES -->
+<div class="page" id="page-estimates">
+  <div class="section-header">
+    <div class="section-title">Estimates</div>
+    <button class="btn btn-primary" onclick="showPage('calculator')">+ New Estimate</button>
+  </div>
+  <div class="card">
+    <div id="estimates-table"></div>
   </div>
 </div>
 
@@ -296,6 +308,20 @@
 </div>
 
 <!-- MODALS -->
+<div class="modal-overlay" id="modal-estimate-detail">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="ed-title">Estimate</div>
+      <button class="modal-close" onclick="closeModal('estimate-detail')">×</button>
+    </div>
+    <div id="ed-body"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-success btn-sm" onclick="convertEstimateToJob()">Convert to Job</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCurrentEstimate()">Delete</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('estimate-detail')" style="margin-left:auto">Close</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-job">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">Book a Job</div><button class="modal-close" onclick="closeModal('job')">×</button></div>
@@ -401,7 +427,7 @@ const SERVICE_LABELS = { flatwork:'Flat Work', house:'House Exterior', deck:'Dec
 const STORY_MULT = { '1':1, '2':1.3, '3':1.6 };
 const DEFAULT_SETTINGS = { rates:{ flatwork:0.25, house:0.35, deck:0.30, roof:0.45, fence:0.20, gutter:0.15 }, dirt:{ light:1, moderate:1.25, heavy:1.6 }, addonChemicals:50 };
 
-let state = { customers:{}, jobs:{}, workers:{}, hours:{}, settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) };
+let state = { customers:{}, jobs:{}, workers:{}, hours:{}, estimates:{}, settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) };
 let calYear = new Date().getFullYear(), calMonth = new Date().getMonth(), currentJobId = null;
 let settingsLoaded = false;
 
@@ -419,6 +445,7 @@ function startListeners() {
   onValue(ref(db,'jobs'), s => { state.jobs=s.val()||{}; reRender(); });
   onValue(ref(db,'workers'), s => { state.workers=s.val()||{}; reRender(); });
   onValue(ref(db,'hours'), s => { state.hours=s.val()||{}; reRender(); });
+  onValue(ref(db,'estimates'), s => { state.estimates=s.val()||{}; reRender(); });
   onValue(ref(db,'settings'), s => {
     if (s.val()) state.settings = s.val();
     settingsLoaded = true;
@@ -439,6 +466,7 @@ function reRender() {
   else if(name==='schedule') renderCalendar();
   else if(name==='customers') renderCustomers();
   else if(name==='timesheet') renderTimesheet();
+  else if(name==='estimates') renderEstimates();
   else if(name==='settings') renderSettings();
 }
 
@@ -453,6 +481,7 @@ window.showPage = function(name) {
   else if(name==='customers') renderCustomers();
   else if(name==='timesheet') renderTimesheet();
   else if(name==='calculator') { populateCalcCustomers(); calcStoryToggle(); renderEstimateLines(); renderEstimateTotal(); }
+  else if(name==='estimates') renderEstimates();
   else if(name==='settings') renderSettings();
 };
 
@@ -689,11 +718,109 @@ window.logHours = function() {
 window.saveEstimate = function() {
   const customerId=document.getElementById('calc-customer').value, date=document.getElementById('calc-date').value;
   const price=Math.round((window._lastCalcTotal||0)*100)/100;
-  const service=estimateLines.map(l=>l.label).join(' + ')||'Estimate';
-  const notes=document.getElementById('calc-notes').value||('Multi-service estimate: '+service);
+  const margin=parseInt(document.getElementById('calc-margin').value);
+  const notes=document.getElementById('calc-notes').value||'';
   if(!customerId||!date){toast('Please select a customer and date');return;}
   if(!estimateLines.length){toast('Please add at least one service');return;}
-  push(ref(db,'jobs'),{customerId,service,date,time:'08:00',status:'scheduled',price,notes}).then(()=>{toast('Estimate saved as a new job!');clearEstimate();}).catch(()=>toast('Error saving'));
+  const estimateData = {
+    customerId, date, price, margin, notes,
+    lines: estimateLines,
+    createdAt: new Date().toISOString(),
+    status: 'pending'
+  };
+  push(ref(db,'estimates'), estimateData).then(()=>{
+    toast('Estimate saved!');
+    clearEstimate();
+    showPage('estimates');
+  }).catch(()=>toast('Error saving estimate'));
+};
+
+// ─── ESTIMATES PAGE ──────────────────────────────
+let currentEstimateId = null;
+
+function renderEstimates() {
+  const el = document.getElementById('estimates-table');
+  const estimates = Object.entries(state.estimates).sort((a,b)=>b[1].createdAt.localeCompare(a[1].createdAt));
+  if (!estimates.length) {
+    el.innerHTML='<div class="empty"><div class="empty-icon">📄</div>No estimates yet. Use the Calculator to build one.</div>';
+    return;
+  }
+  el.innerHTML = `<table><thead><tr><th>Date</th><th>Customer</th><th>Services</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${
+    estimates.map(([id,e]) => {
+      const c = state.customers[e.customerId];
+      const services = (e.lines||[]).map(l=>l.label).join(', ');
+      const statusColor = e.status==='accepted' ? 'complete' : e.status==='declined' ? 'cancelled' : 'scheduled';
+      return `<tr>
+        <td class="mono">${fmt(e.date)}</td>
+        <td><strong>${c ? c.fname+' '+c.lname : 'Unknown'}</strong>${c&&c.phone?`<div style="font-size:11px;color:var(--muted)">${c.phone}</div>`:''}</td>
+        <td style="font-size:13px;color:var(--muted)">${services}</td>
+        <td class="mono" style="color:var(--accent)">${fmtMoney(e.price)}</td>
+        <td><span class="badge badge-${statusColor}">${e.status||'pending'}</span></td>
+        <td><button class="btn btn-ghost btn-sm" onclick="viewEstimate('${id}')">View</button></td>
+      </tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+
+window.viewEstimate = function(id) {
+  currentEstimateId = id;
+  const e = state.estimates[id];
+  const c = e ? state.customers[e.customerId] : null;
+  const subtotal = (e.lines||[]).reduce((a,b)=>a+b.subtotal,0);
+  const markup = subtotal * ((e.margin||0)/100);
+  document.getElementById('ed-title').textContent = c ? c.fname+' '+c.lname+' — Estimate' : 'Estimate';
+  document.getElementById('ed-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;margin-bottom:16px">
+      <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px">Customer</div><div style="margin-top:4px;font-weight:600">${c?c.fname+' '+c.lname:'Unknown'}</div>${c&&c.phone?`<div style="font-size:12px;color:var(--muted)">${c.phone}</div>`:''}</div>
+      <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px">Date</div><div style="margin-top:4px">${fmt(e.date)}</div></div>
+      <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px">Address</div><div style="margin-top:4px;font-size:13px">${c&&c.address?c.address:'—'}</div></div>
+      <div><div style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px">Status</div><div style="margin-top:4px"><span class="badge badge-${e.status==='accepted'?'complete':e.status==='declined'?'cancelled':'scheduled'}">${e.status||'pending'}</span></div></div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px">Service Breakdown</div>
+      ${(e.lines||[]).map(l=>`
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:14px">
+          <div>
+            <div style="font-weight:600">${l.label}</div>
+            <div style="font-size:12px;color:var(--muted)">${l.sqft} sqft • ${l.dirtVal} dirt${l.stories>1?' • '+l.stories+' stories':''}${l.sealant?' • sealant':''}${l.chemicals?' • chemicals':''}</div>
+          </div>
+          <div class="mono" style="color:var(--accent)">${fmtMoney(l.subtotal)}</div>
+        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;color:var(--muted)"><span>Subtotal</span><span>${fmtMoney(subtotal)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;color:var(--muted)"><span>Markup (${e.margin||0}%)</span><span>+${fmtMoney(markup)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-weight:700;font-size:16px"><span>TOTAL</span><span style="color:var(--accent);font-family:'JetBrains Mono'">${fmtMoney(e.price)}</span></div>
+    </div>
+    ${e.notes?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">📝 ${e.notes}</div>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px;width:100%">Update Status:</div>
+      <button class="btn btn-ghost btn-sm" onclick="updateEstimateStatus('pending')">Pending</button>
+      <button class="btn btn-success btn-sm" onclick="updateEstimateStatus('accepted')">Accepted</button>
+      <button class="btn btn-danger btn-sm" onclick="updateEstimateStatus('declined')">Declined</button>
+    </div>`;
+  document.getElementById('modal-estimate-detail').classList.add('open');
+};
+
+window.updateEstimateStatus = function(status) {
+  if(!currentEstimateId) return;
+  update(ref(db,'estimates/'+currentEstimateId),{status}).then(()=>{ toast('Status updated to '+status); viewEstimate(currentEstimateId); }).catch(()=>toast('Error'));
+};
+
+window.convertEstimateToJob = function() {
+  const e = state.estimates[currentEstimateId];
+  if(!e){toast('Estimate not found');return;}
+  const service = (e.lines||[]).map(l=>l.label).join(' + ');
+  push(ref(db,'jobs'),{customerId:e.customerId, service, date:e.date, time:'08:00', status:'scheduled', price:e.price, notes:e.notes||'Converted from estimate'})
+    .then(()=>{
+      update(ref(db,'estimates/'+currentEstimateId),{status:'accepted'});
+      closeModal('estimate-detail');
+      toast('Estimate converted to job!');
+      showPage('schedule');
+    }).catch(()=>toast('Error converting estimate'));
+};
+
+window.deleteCurrentEstimate = function() {
+  if(!confirm('Delete this estimate?')) return;
+  remove(ref(db,'estimates/'+currentEstimateId)).then(()=>{ closeModal('estimate-detail'); toast('Estimate deleted'); }).catch(()=>toast('Error'));
 };
 window.deleteCustomer = function(id) { if(!confirm('Delete this customer?')) return; remove(ref(db,'customers/'+id)).then(()=>toast('Customer removed')); };
 window.deleteWorker = function(id) { if(!confirm('Delete this worker?')) return; remove(ref(db,'workers/'+id)).then(()=>toast('Worker removed')); };
